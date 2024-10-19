@@ -1,101 +1,151 @@
-import Image from "next/image";
+"use client"; // This will enable client-side hooks like useState and useEffect
+
+import { useEffect, useState } from "react";
+import TaskForm from "./components/TaskForm";
+import TaskList from "./components/TaskList";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    const [tasks, setTasks] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showPopup, setShowPopup] = useState(false); // State to toggle sort popup
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+    // Fetch tasks directly inside the component
+    useEffect(() => {
+        async function loadTasks() {
+            // This array simulates fetching data from a database or API on the server
+            const initialTasks = [
+                { id: 1, title: "Buy Groceries", description: "Milk, Bread, Eggs", priority: "high", completed: false },
+                { id: 2, title: "Meeting with Ravi", description: "Discussing about project ", priority: "medium", completed: false },
+                { id: 3, title: "Gym", description: "Workout at 6 PM", priority: "low", completed: false },
+            ];
+
+            setTasks(initialTasks); // Set the initial tasks
+        }
+        loadTasks();
+    }, []);
+
+    // Filter tasks based on search query
+    const filteredTasks = tasks.filter((task) => {
+        return (
+            task.title.toLowerCase().includes(searchQuery) ||
+            task.description.toLowerCase().includes(searchQuery)
+        );
+    });
+
+    // Function to sort tasks by priority (high, medium, low)
+    const sortTasksByPriority = (priority) => {
+        const priorityMap = { high: 1, medium: 2, low: 3 };
+
+        // Sort filtered tasks based on selected priority
+        const sortedTasks = [...filteredTasks].sort((a, b) => {
+            if (priority === 'high') return priorityMap[a.priority] - priorityMap[b.priority];
+            if (priority === 'medium') return (a.priority === 'medium' ? -1 : 1);
+            if (priority === 'low') return (a.priority === 'low' ? -1 : 1);
+        });
+        setTasks(sortedTasks);
+        setShowPopup(false); // Close popup after sorting
+    };
+
+    // Save tasks to local storage whenever tasks state changes
+    useEffect(() => {
+        if (tasks.length > 0) {
+            localStorage.setItem("tasks", JSON.stringify(tasks));
+        }
+    }, [tasks]);
+
+    // Function to add a new task
+    const addTask = (title, description, priority) => {
+        const newTask = {
+            id: Date.now(),
+            title,
+            description,
+            priority,
+            completed: false,
+        };
+        setTasks([...tasks, newTask]);
+    };
+
+    // Function to edit an existing task
+    const editTask = (id, updatedTask) => {
+        setTasks(tasks.map((task) => (task.id === id ? { ...task, ...updatedTask } : task)));
+    };
+
+    // Function to delete a task
+    const deleteTask = (id) => {
+        setTasks(tasks.filter((task) => task.id !== id));
+    };
+
+    // Function to toggle task completion status
+    const toggleTaskCompletion = (id) => {
+        setTasks(tasks.map((task) =>
+            task.id === id ? { ...task, completed: !task.completed } : task
+        ));
+    };
+
+    // Split tasks into incomplete and completed
+    const incompleteTasks = filteredTasks.filter((task) => !task.completed);
+    const completedTasks = filteredTasks.filter((task) => task.completed);
+
+    // Combine incomplete and completed tasks for rendering
+    const combinedTasks = [...incompleteTasks, ...completedTasks];
+
+    return (
+        <div className="container mx-auto p-4">
+            <h1 className="text-3xl font-bold mb-4 text-white hover:font-extrabold">Task Management</h1>
+
+            {/* Search Bar */}
+            <input
+                type="text"
+                placeholder="Search tasks..."
+                className="border rounded-xl px-4 py-2 mb-4 w-1/2 outline-none" // Fixed width of 630px
+                onChange={(e) => setSearchQuery(e.target.value.toLowerCase())}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+
+            {/* Sort Popup */}
+            {showPopup && (
+                <div className="absolute bg-white border rounded p-2 shadow-md">
+                    <p className="mb-2">Sort by:</p>
+                    <button 
+                        className="block bg-red-500 text-sm text-white px-4 py-1.5 rounded mb-1 w-full"
+                        onClick={() => sortTasksByPriority('high')}
+                    >
+                        Priority by High
+                    </button>
+                    <button 
+                        className="block bg-yellow-500 text-sm text-white px-4 py-1.5 rounded mb-1 w-full"
+                        onClick={() => sortTasksByPriority('medium')}
+                    >
+                        Priority by Medium
+                    </button>
+                    <button 
+                        className="block bg-green-500 text-sm text-white px-4 py-1.5 rounded mb-1 w-full"
+                        onClick={() => sortTasksByPriority('low')}
+                    >
+                        Priority by Low
+                    </button>
+                </div>
+            )}
+
+            {/* TaskForm component for adding new tasks */}
+            <TaskForm addTask={addTask} />
+
+            {/* Sort Tasks Button */}
+            <button
+                className="bg-blue-500 text-white px-6 py-2 rounded-xl mb-12"
+                onClick={() => setShowPopup(!showPopup)} // Toggle popup
+            >
+                Sort Tasks
+            </button>
+
+            <div className="border border-black-2"></div>
+
+            {/* TaskList component displaying sorted and filtered tasks */}
+            <TaskList
+                tasks={combinedTasks}
+                editTask={editTask}
+                deleteTask={deleteTask}
+                toggleTaskCompletion={toggleTaskCompletion}
+            />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+    );
 }
